@@ -45,7 +45,7 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "./ui/collapsi
 import { ScrollArea } from "./ui/scroll-area";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "./ui/menu";
 import { stackedThreadToast, toastManager } from "./ui/toast";
-import { openInPreferredEditor } from "../editorPreferences";
+import { useOpenInPreferredEditor } from "../editorPreferences";
 import { resolveDiffThemeName, type DiffThemeName } from "../lib/diffRendering";
 import { fnv1a32 } from "../lib/diffRendering";
 import { LRUCache } from "../lib/lruCache";
@@ -62,6 +62,8 @@ import {
 } from "../markdown-links";
 import { readLocalApi } from "../localApi";
 import { cn } from "../lib/utils";
+import { useStore } from "../store";
+import { useWebServerConfig } from "../connection/useWebEnvironmentData";
 
 class CodeHighlightErrorBoundary extends React.Component<
   { fallback: ReactNode; children: ReactNode },
@@ -670,6 +672,7 @@ interface MarkdownFileLinkProps {
   label: string;
   copyMarkdown: string;
   theme: "light" | "dark";
+  onOpen: (targetPath: string) => Promise<unknown>;
   className?: string | undefined;
 }
 
@@ -944,19 +947,11 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
   label,
   copyMarkdown,
   theme,
+  onOpen,
   className,
 }: MarkdownFileLinkProps) {
   const handleOpen = useCallback(() => {
-    const api = readLocalApi();
-    if (!api) {
-      toastManager.add({
-        type: "error",
-        title: "Open in editor is unavailable",
-      });
-      return;
-    }
-
-    void openInPreferredEditor(api, targetPath).catch((error) => {
+    void onOpen(targetPath).catch((error) => {
       toastManager.add(
         stackedThreadToast({
           type: "error",
@@ -965,7 +960,7 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
         }),
       );
     });
-  }, [targetPath]);
+  }, [onOpen, targetPath]);
 
   const handleCopy = useCallback((value: string, title: string) => {
     if (typeof window === "undefined" || !navigator.clipboard?.writeText) {
@@ -1074,6 +1069,7 @@ function areMarkdownFileLinkPropsEqual(
     previous.label === next.label &&
     previous.copyMarkdown === next.copyMarkdown &&
     previous.theme === next.theme &&
+    previous.onOpen === next.onOpen &&
     previous.className === next.className
   );
 }
@@ -1087,6 +1083,12 @@ function ChatMarkdown({
   lineBreaks = false,
 }: ChatMarkdownProps) {
   const { resolvedTheme } = useTheme();
+  const environmentId = useStore((state) => state.activeEnvironmentId);
+  const serverConfig = useWebServerConfig(environmentId);
+  const openInPreferredEditor = useOpenInPreferredEditor(
+    environmentId,
+    serverConfig.data?.availableEditors ?? [],
+  );
   const diffThemeName = resolveDiffThemeName(resolvedTheme);
   const markdownFileLinkMetaByHref = useMemo(() => {
     const metaByHref = new Map<
@@ -1194,6 +1196,7 @@ function ChatMarkdown({
             label={labelParts.join(" · ")}
             copyMarkdown={`[${fileLinkMeta.basename}](${normalizedHref})`}
             theme={resolvedTheme}
+            onOpen={openInPreferredEditor}
             className={props.className}
           />
         );
@@ -1238,6 +1241,7 @@ function ChatMarkdown({
       fileLinkParentSuffixByPath,
       isStreaming,
       markdownFileLinkMetaByHref,
+      openInPreferredEditor,
       resolvedTheme,
       skills,
     ],

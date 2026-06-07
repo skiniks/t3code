@@ -36,7 +36,6 @@ import { useComposerDraftStore } from "../composerDraftStore";
 import { __resetLocalApiForTests } from "../localApi";
 import { AppAtomRegistryProvider } from "../rpc/atomRegistry";
 import { getServerConfig, getServerConfigUpdatedNotification } from "../rpc/serverState";
-import { getWsConnectionStatus } from "../rpc/wsConnectionState";
 import { getRouter } from "../router";
 import { useStore } from "../store";
 import { createAuthenticatedSessionHandlers } from "../../test/authHttpHandlers";
@@ -369,15 +368,6 @@ async function waitForToastViewport(): Promise<HTMLElement> {
   );
 }
 
-async function waitForWsConnection(): Promise<void> {
-  await vi.waitFor(
-    () => {
-      expect(getWsConnectionStatus().phase).toBe("connected");
-    },
-    { timeout: 8_000, interval: 16 },
-  );
-}
-
 async function waitForToast(title: string, count = 1): Promise<void> {
   await vi.waitFor(
     () => {
@@ -479,7 +469,6 @@ async function mountApp(): Promise<{ cleanup: () => Promise<void> }> {
   await waitForComposerEditor();
   await waitForToastViewport();
   await waitForInitialWsSubscriptions();
-  await waitForWsConnection();
   await waitForServerConfigSnapshot();
   await waitForServerConfigStreamReady();
   await waitForNoToasts();

@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { stackedThreadToast, toastManager } from "../ui/toast";
-import { readEnvironmentApi } from "~/environmentApi";
+import { useWebActions } from "~/connection/useWebEnvironmentData";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 
 export const ProposedPlanCard = memo(function ProposedPlanCard({
@@ -45,6 +45,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [savePath, setSavePath] = useState("");
   const [isSavingToWorkspace, setIsSavingToWorkspace] = useState(false);
+  const actions = useWebActions();
   const { copyToClipboard, isCopied } = useCopyToClipboard({
     onError: (error) => {
       toastManager.add(
@@ -91,9 +92,8 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
   };
 
   const handleSaveToWorkspace = () => {
-    const api = readEnvironmentApi(environmentId);
     const relativePath = savePath.trim();
-    if (!api || !workspaceRoot) {
+    if (!workspaceRoot) {
       return;
     }
     if (!relativePath) {
@@ -105,11 +105,14 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
     }
 
     setIsSavingToWorkspace(true);
-    void api.projects
+    void actions.projects
       .writeFile({
-        cwd: workspaceRoot,
-        relativePath,
-        contents: saveContents,
+        environmentId,
+        input: {
+          cwd: workspaceRoot,
+          relativePath,
+          contents: saveContents,
+        },
       })
       .then((result) => {
         setIsSaveDialogOpen(false);

@@ -1,6 +1,7 @@
 import { EnvironmentAuthInvalidError, EnvironmentId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
+import { Headers } from "effect/unstable/http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const decodeEnvironmentAuthInvalidError = Schema.decodeUnknownSync(EnvironmentAuthInvalidError);
@@ -386,6 +387,7 @@ describe("addSavedEnvironment", () => {
       wsBaseUrl: "wss://managed.example.com/",
       relayUrl: "https://relay.example.com",
       accessToken: "managed-access-token",
+      relayTraceHeaders: Headers.empty,
     });
 
     expect(mockWriteSavedEnvironmentCredential).toHaveBeenCalledWith(
@@ -443,6 +445,7 @@ describe("addSavedEnvironment", () => {
         wsBaseUrl: "wss://managed.example.com/",
         relayUrl: "https://relay.example.com",
         accessToken: "renewed-access-token",
+        relayTraceHeaders: Headers.empty,
       }),
     );
 

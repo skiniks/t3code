@@ -1501,6 +1501,8 @@ describe("deriveTimelineEntries", () => {
           role: "assistant",
           text: "hello",
           createdAt: "2026-02-23T00:00:01.000Z",
+          turnId: null,
+          updatedAt: "2026-02-23T00:00:01.000Z",
           streaming: false,
         },
       ],
@@ -1534,6 +1536,40 @@ describe("deriveTimelineEntries", () => {
         implementationThreadId: null,
       },
     });
+  });
+  it("anchors the completion divider to latestTurn.assistantMessageId before timestamp fallback", () => {
+    const entries = deriveTimelineEntries(
+      [
+        {
+          id: MessageId.make("assistant-earlier"),
+          role: "assistant",
+          text: "progress update",
+          createdAt: "2026-02-23T00:00:01.000Z",
+          turnId: null,
+          updatedAt: "2026-02-23T00:00:01.000Z",
+          streaming: false,
+        },
+        {
+          id: MessageId.make("assistant-final"),
+          role: "assistant",
+          text: "final answer",
+          createdAt: "2026-02-23T00:00:01.000Z",
+          turnId: null,
+          updatedAt: "2026-02-23T00:00:01.000Z",
+          streaming: false,
+        },
+      ],
+      [],
+      [],
+    );
+
+    expect(
+      deriveCompletionDividerBeforeEntryId(entries, {
+        assistantMessageId: MessageId.make("assistant-final"),
+        startedAt: "2026-02-23T00:00:00.000Z",
+        completedAt: "2026-02-23T00:00:02.000Z",
+      }),
+    ).toBe("assistant-final");
   });
 });
 
@@ -1586,7 +1622,7 @@ describe("isLatestTurnSettled", () => {
   it("returns false while the same turn is still active in a running session", () => {
     expect(
       isLatestTurnSettled(latestTurn, {
-        orchestrationStatus: "running",
+        status: "running",
         activeTurnId: TurnId.make("turn-1"),
       }),
     ).toBe(false);
@@ -1595,7 +1631,7 @@ describe("isLatestTurnSettled", () => {
   it("returns false while any turn is running to avoid stale latest-turn banners", () => {
     expect(
       isLatestTurnSettled(latestTurn, {
-        orchestrationStatus: "running",
+        status: "running",
         activeTurnId: TurnId.make("turn-2"),
       }),
     ).toBe(false);
@@ -1604,8 +1640,8 @@ describe("isLatestTurnSettled", () => {
   it("returns true once the session is no longer running that turn", () => {
     expect(
       isLatestTurnSettled(latestTurn, {
-        orchestrationStatus: "ready",
-        activeTurnId: undefined,
+        status: "ready",
+        activeTurnId: null,
       }),
     ).toBe(true);
   });
@@ -1636,7 +1672,7 @@ describe("deriveActiveWorkStartedAt", () => {
       deriveActiveWorkStartedAt(
         latestTurn,
         {
-          orchestrationStatus: "running",
+          status: "running",
           activeTurnId: TurnId.make("turn-1"),
         },
         "2026-02-27T21:11:00.000Z",
@@ -1649,7 +1685,7 @@ describe("deriveActiveWorkStartedAt", () => {
       deriveActiveWorkStartedAt(
         latestTurn,
         {
-          orchestrationStatus: "running",
+          status: "running",
           activeTurnId: TurnId.make("turn-2"),
         },
         "2026-02-27T21:11:00.000Z",
@@ -1662,8 +1698,8 @@ describe("deriveActiveWorkStartedAt", () => {
       deriveActiveWorkStartedAt(
         latestTurn,
         {
-          orchestrationStatus: "ready",
-          activeTurnId: undefined,
+          status: "ready",
+          activeTurnId: null,
         },
         "2026-02-27T21:11:00.000Z",
       ),

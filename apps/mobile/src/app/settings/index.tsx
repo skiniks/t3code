@@ -1,4 +1,4 @@
-import { useAuth, useUser } from "@clerk/expo";
+import { useAuth, useUser, useUserProfileModal } from "@clerk/expo";
 import * as Notifications from "expo-notifications";
 import { Link, Stack, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
@@ -17,10 +17,10 @@ import {
   hasCloudPublicConfig,
   resolveRelayClerkTokenOptions,
 } from "../../features/cloud/publicConfig";
-import { mobileRuntime } from "../../lib/runtime";
+import { runtime } from "../../lib/runtime";
 import { loadPreferences } from "../../lib/storage";
 import { useThemeColor } from "../../lib/useThemeColor";
-import { useRemoteEnvironmentState } from "../../state/use-remote-environment-registry";
+import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
 
 type NotificationStatus = "checking" | "enabled" | "disabled" | "unsupported";
 type LiveActivityStatus = "checking" | "enabled" | "disabled" | "signed-out" | "linking";
@@ -31,7 +31,7 @@ export default function SettingsRouteScreen() {
 
 function LocalSettingsRouteScreen() {
   const insets = useSafeAreaInsets();
-  const { savedConnectionsById } = useRemoteEnvironmentState();
+  const { savedConnectionsById } = useSavedRemoteConnections();
   const environmentCount = Object.keys(savedConnectionsById).length;
 
   return (
@@ -68,7 +68,8 @@ function ConfiguredSettingsRouteScreen() {
   const { push } = useRouter();
   const { getToken, isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const { user } = useUser();
-  const { savedConnectionsById } = useRemoteEnvironmentState();
+  const { isAvailable: isUserProfileModalAvailable, presentUserProfile } = useUserProfileModal();
+  const { savedConnectionsById } = useSavedRemoteConnections();
   const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>("checking");
   const [liveActivityStatus, setLiveActivityStatus] = useState<LiveActivityStatus>("checking");
 
@@ -114,7 +115,7 @@ function ConfiguredSettingsRouteScreen() {
 
   const requestNotifications = useCallback(async () => {
     try {
-      const result = await mobileRuntime.runPromise(
+      const result = await runtime.runPromise(
         requestAgentNotificationPermission.pipe(
           Effect.tap((permission) =>
             permission.type === "granted" ? refreshAgentAwarenessRegistration() : Effect.void,
@@ -184,7 +185,7 @@ function ConfiguredSettingsRouteScreen() {
         return;
       }
 
-      await mobileRuntime.runPromise(
+      await runtime.runPromise(
         setLiveActivityUpdatesEnabled({
           enabled: true,
           clerkToken: token,
@@ -234,7 +235,7 @@ function ConfiguredSettingsRouteScreen() {
         void (async () => {
           try {
             const token = isSignedIn ? await getToken(resolveRelayClerkTokenOptions()) : null;
-            await mobileRuntime.runPromise(
+            await runtime.runPromise(
               setLiveActivityUpdatesEnabled({
                 enabled: false,
                 clerkToken: token,
@@ -265,11 +266,15 @@ function ConfiguredSettingsRouteScreen() {
       push("/settings/waitlist");
       return;
     }
+    if (isUserProfileModalAvailable) {
+      void presentUserProfile();
+      return;
+    }
     Alert.alert(
       "T3 Cloud unavailable",
       "Native T3 Cloud account management is not available in this build.",
     );
-  }, [isLoaded, isSignedIn, push]);
+  }, [isLoaded, isSignedIn, isUserProfileModalAvailable, presentUserProfile, push]);
 
   return (
     <View collapsable={false} className="flex-1 bg-sheet">

@@ -314,9 +314,7 @@ describe("web cloud link environment client", () => {
         }),
       );
 
-      expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-        "http://127.0.0.1:3000/api/connect/unlink",
-      );
+      expect(String(fetchMock.mock.calls[0]?.[0])).toBe("http://127.0.0.1:3000/api/connect/unlink");
       expect(String(fetchMock.mock.calls[1]?.[0])).toContain(
         `/v1/client/environment-links/${TARGET.environmentId}`,
       );

@@ -419,7 +419,7 @@ export function linkPrimaryEnvironmentToCloud(input: {
           ),
         ),
       );
-    const proof = yield* environmentClient.cloud
+    const proof = yield* environmentClient.connect
       .linkProof({
         headers: {},
         payload: {
@@ -458,7 +458,7 @@ export function linkPrimaryEnvironmentToCloud(input: {
       link,
     });
 
-    yield* environmentClient.cloud
+    yield* environmentClient.connect
       .relayConfig({
         headers: {},
         payload: {

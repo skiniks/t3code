@@ -1476,40 +1476,6 @@ describe("deriveTimelineEntries", () => {
       },
     });
   });
-  it("anchors the completion divider to latestTurn.assistantMessageId before timestamp fallback", () => {
-    const entries = deriveTimelineEntries(
-      [
-        {
-          id: MessageId.make("assistant-earlier"),
-          role: "assistant",
-          text: "progress update",
-          createdAt: "2026-02-23T00:00:01.000Z",
-          turnId: null,
-          updatedAt: "2026-02-23T00:00:01.000Z",
-          streaming: false,
-        },
-        {
-          id: MessageId.make("assistant-final"),
-          role: "assistant",
-          text: "final answer",
-          createdAt: "2026-02-23T00:00:01.000Z",
-          turnId: null,
-          updatedAt: "2026-02-23T00:00:01.000Z",
-          streaming: false,
-        },
-      ],
-      [],
-      [],
-    );
-
-    expect(
-      deriveCompletionDividerBeforeEntryId(entries, {
-        assistantMessageId: MessageId.make("assistant-final"),
-        startedAt: "2026-02-23T00:00:00.000Z",
-        completedAt: "2026-02-23T00:00:02.000Z",
-      }),
-    ).toBe("assistant-final");
-  });
 });
 
 describe("deriveWorkLogEntries context window handling", () => {

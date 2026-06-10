@@ -452,6 +452,7 @@ describe("deriveMessagesTimelineRows", () => {
           text: "Build it",
           turnId: null,
           createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
           streaming: false,
         },
       },
@@ -465,7 +466,7 @@ describe("deriveMessagesTimelineRows", () => {
           text: "Looking around first.",
           turnId: "turn-1" as never,
           createdAt: "2026-01-01T00:00:05Z",
-          completedAt: "2026-01-01T00:00:06Z",
+          updatedAt: "2026-01-01T00:00:06Z",
           streaming: false,
         },
       },
@@ -491,7 +492,7 @@ describe("deriveMessagesTimelineRows", () => {
           text: "Done",
           turnId: "turn-1" as never,
           createdAt: "2026-01-01T00:00:20Z",
-          completedAt: "2026-01-01T00:00:22Z",
+          updatedAt: "2026-01-01T00:00:22Z",
           streaming: false,
         },
       },
@@ -511,7 +512,7 @@ describe("deriveMessagesTimelineRows", () => {
     );
     expect(foldRow?.turnId).toBe("turn-1");
     expect(foldRow?.expanded).toBe(false);
-    // First fold entry (00:00:05) → terminal message completedAt (00:00:22).
+    // First fold entry (00:00:05) to terminal message update (00:00:22).
     expect(foldRow?.label).toBe("Worked for 17s");
     expect(collapsedRows.map((row) => row.id)).toEqual([
       "user-entry",
@@ -605,7 +606,7 @@ describe("deriveMessagesTimelineRows", () => {
             text: "Done",
             turnId: "turn-1" as never,
             createdAt: "2026-01-01T00:00:20Z",
-            completedAt: "2026-01-01T00:00:22Z",
+            updatedAt: "2026-01-01T00:00:22Z",
             streaming: false,
           },
         },
@@ -619,6 +620,7 @@ describe("deriveMessagesTimelineRows", () => {
             text: "yooo",
             turnId: null,
             createdAt: "2026-01-01T00:01:00Z",
+            updatedAt: "2026-01-01T00:01:00Z",
             streaming: false,
           },
         },
@@ -658,7 +660,7 @@ describe("deriveMessagesTimelineRows", () => {
             text: "Working on it.",
             turnId: "turn-1" as never,
             createdAt: "2026-01-01T00:00:05Z",
-            completedAt: "2026-01-01T00:00:06Z",
+            updatedAt: "2026-01-01T00:00:06Z",
             streaming: false,
           },
         },
@@ -708,7 +710,7 @@ describe("deriveMessagesTimelineRows", () => {
             text: "Checking first.",
             turnId: "turn-1" as never,
             createdAt: "2026-01-01T00:00:10Z",
-            completedAt: "2026-01-01T00:00:11Z",
+            updatedAt: "2026-01-01T00:00:11Z",
             streaming: false,
           },
         },
@@ -722,7 +724,7 @@ describe("deriveMessagesTimelineRows", () => {
             text: "Done.",
             turnId: "turn-1" as never,
             createdAt: "2026-01-01T00:00:20Z",
-            completedAt: "2026-01-01T00:00:30Z",
+            updatedAt: "2026-01-01T00:00:30Z",
             streaming: false,
           },
         },
@@ -755,7 +757,7 @@ describe("deriveMessagesTimelineRows", () => {
             text: "Working on it.",
             turnId: "turn-1" as never,
             createdAt: "2026-01-01T00:00:10Z",
-            completedAt: "2026-01-01T00:00:11Z",
+            updatedAt: "2026-01-01T00:00:11Z",
             streaming: false,
           },
         },

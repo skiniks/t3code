@@ -231,10 +231,8 @@ function deriveTurnFolds(input: {
         ? computeElapsedMs(input.latestTurn.startedAt, input.latestTurn.completedAt)
         : computeElapsedMs(
             firstEntry.createdAt,
-            group.terminalEntry?.message.completedAt ??
-              (lastEntry.kind === "message"
-                ? (lastEntry.message.completedAt ?? lastEntry.createdAt)
-                : lastEntry.createdAt),
+            group.terminalEntry?.message.updatedAt ??
+              (lastEntry.kind === "message" ? lastEntry.message.updatedAt : lastEntry.createdAt),
           );
     const duration = elapsedMs !== null ? formatDuration(elapsedMs) : null;
     const label = isLatestInterruptedTurn

@@ -313,6 +313,7 @@ describe("makeRelayDeviceRegistrationRequest", () => {
       vi.mocked(Notifications.getDevicePushTokenAsync).mockClear();
 
       yield* refreshAgentAwarenessRegistration();
+      yield* runBackgroundOperations();
 
       expect(Notifications.getDevicePushTokenAsync).toHaveBeenCalledTimes(1);
     }).pipe(Effect.provide(relayTestLayer));

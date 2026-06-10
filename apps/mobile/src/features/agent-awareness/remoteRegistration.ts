@@ -474,13 +474,9 @@ export function refreshAgentAwarenessRegistration(): Effect.Effect<
   never,
   ManagedRelayClient
 > {
-  return registerDeviceForCurrentUser().pipe(
-    Effect.catch((error) =>
-      Effect.sync(() => {
-        logRegistrationError("device registration refresh failed", error);
-      }),
-    ),
-  );
+  return Effect.sync(() => {
+    enqueueDeviceRegistration({}, "device registration refresh failed");
+  });
 }
 
 export function __resetAgentAwarenessRemoteRegistrationForTest(): void {

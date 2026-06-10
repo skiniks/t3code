@@ -73,7 +73,15 @@ function CloudAuthBridge(props: { readonly children: ReactNode }) {
       setAgentAwarenessRelayTokenProvider(null);
       setManagedRelaySession(appAtomRegistry, null);
       if (previousObservedAccount !== null) {
-        void queueAccountCleanup(previous);
+        void queueAccountCleanup(
+          previous ??
+            (typeof previousObservedAccount === "string"
+              ? {
+                  userId: previousObservedAccount,
+                  provider: () => getToken(resolveRelayClerkTokenOptions()),
+                }
+              : null),
+        );
       }
       return;
     }

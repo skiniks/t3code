@@ -36,9 +36,7 @@ function deriveProjectEmptyState(catalogState: WorkspaceState): {
   }
 
   if (
-    (catalogState.connectionState === "available" ||
-      catalogState.connectionState === "offline" ||
-      catalogState.connectionState === "error") &&
+    (catalogState.connectionState === "offline" || catalogState.connectionState === "error") &&
     !catalogState.hasLoadedShellSnapshot
   ) {
     return {

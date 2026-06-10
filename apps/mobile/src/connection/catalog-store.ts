@@ -66,17 +66,25 @@ export const makeCatalogStore = Effect.fn("mobile.connectionStorage.makeCatalogS
       return cached.value;
     }
     const raw = yield* storage.getItem(CONNECTION_CATALOG_KEY);
-    let catalog: ConnectionCatalogDocumentType;
+    let catalog: ConnectionCatalogDocumentType = EMPTY_CONNECTION_CATALOG_DOCUMENT;
+    let catalogLoaded = false;
     if (raw !== null && raw.trim() !== "") {
-      catalog = yield* decodeCatalog(raw).pipe(
-        Effect.catch((error) =>
-          Effect.logWarning("Discarding corrupt mobile connection catalog", error).pipe(
-            Effect.andThen(storage.deleteItem(CONNECTION_CATALOG_KEY)),
-            Effect.as(EMPTY_CONNECTION_CATALOG_DOCUMENT),
-          ),
+      const decoded = yield* decodeCatalog(raw).pipe(
+        Effect.option,
+        Effect.tap((result) =>
+          Option.isNone(result)
+            ? Effect.logWarning("Discarding corrupt mobile connection catalog").pipe(
+                Effect.andThen(storage.deleteItem(CONNECTION_CATALOG_KEY)),
+              )
+            : Effect.void,
         ),
       );
-    } else {
+      if (Option.isSome(decoded)) {
+        catalog = decoded.value;
+        catalogLoaded = true;
+      }
+    }
+    if (!catalogLoaded) {
       const legacyRaw = yield* storage.getItem(LEGACY_CONNECTIONS_KEY);
       catalog =
         legacyRaw === null || legacyRaw.trim() === ""

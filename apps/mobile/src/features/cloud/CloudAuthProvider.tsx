@@ -72,7 +72,7 @@ function CloudAuthBridge(props: { readonly children: ReactNode }) {
       previousTokenProviderRef.current = null;
       setAgentAwarenessRelayTokenProvider(null);
       setManagedRelaySession(appAtomRegistry, null);
-      if (previousObservedAccount !== null) {
+      if (previousObservedAccount !== undefined && previousObservedAccount !== null) {
         void queueAccountCleanup(previous);
       }
       return;

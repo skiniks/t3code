@@ -9,9 +9,17 @@ import {
 } from "../lib/nativeMarkdownText";
 import { NativeMarkdownBlock } from "./NativeMarkdownBlock.ios";
 import { NativeMarkdownSelectableText } from "./NativeMarkdownSelectableText.ios";
-import type { SelectableMarkdownTextProps } from "./SelectableMarkdownText.types";
+import type {
+  SelectableMarkdownSkill,
+  SelectableMarkdownTextProps,
+} from "./SelectableMarkdownText.types";
 
-export type { NativeMarkdownTextStyle } from "./SelectableMarkdownText.types";
+const EMPTY_SKILLS: ReadonlyArray<SelectableMarkdownSkill> = [];
+
+export type {
+  NativeMarkdownTextStyle,
+  SelectableMarkdownSkill,
+} from "./SelectableMarkdownText.types";
 
 export function hasNativeSelectableMarkdownText(): boolean {
   return true;
@@ -19,6 +27,7 @@ export function hasNativeSelectableMarkdownText(): boolean {
 
 export function SelectableMarkdownText({
   markdown,
+  skills = EMPTY_SKILLS,
   textStyle,
   marginTop = 0,
   marginBottom = 0,
@@ -33,11 +42,11 @@ export function SelectableMarkdownText({
       chunk.kind === "selectable"
         ? {
             ...chunk,
-            runs: nativeMarkdownDocumentRuns(chunk.node),
+            runs: nativeMarkdownDocumentRuns(chunk.node, skills),
           }
         : chunk,
     );
-  }, [markdown]);
+  }, [markdown, skills]);
 
   return (
     <View style={{ width: "100%", marginTop, marginBottom }}>

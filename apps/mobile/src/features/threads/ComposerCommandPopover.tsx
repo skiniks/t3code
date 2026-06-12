@@ -6,6 +6,7 @@ import { memo } from "react";
 import { Pressable, ScrollView, useColorScheme, View, type ViewStyle } from "react-native";
 
 import { AppText as Text } from "../../components/AppText";
+import { VscodeEntryIcon } from "../../components/VscodeEntryIcon";
 
 export type ComposerCommandItem =
   | {
@@ -88,13 +89,13 @@ function PopoverSurface(props: {
 
 function itemIcon(item: ComposerCommandItem) {
   switch (item.type) {
-    case "path":
-      return item.kind === "directory" ? ("folder" as const) : ("doc" as const);
     case "slash-command":
     case "provider-slash-command":
       return "terminal" as const;
     case "skill":
       return "cube" as const;
+    case "path":
+      return null;
   }
 }
 
@@ -149,7 +150,11 @@ const CommandRow = memo(function CommandRow(props: {
         borderBottomColor: "rgba(255,255,255,0.1)",
       })}
     >
-      <SymbolView name={iconName} size={14} tintColor={iconColor} type="monochrome" />
+      {props.item.type === "path" ? (
+        <VscodeEntryIcon path={props.item.path} kind={props.item.kind} size={16} />
+      ) : iconName ? (
+        <SymbolView name={iconName} size={14} tintColor={iconColor} type="monochrome" />
+      ) : null}
       <Text
         className="text-[14px] font-t3-medium text-foreground"
         numberOfLines={1}

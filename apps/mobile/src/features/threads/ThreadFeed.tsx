@@ -15,7 +15,6 @@ import {
   ActivityIndicator,
   Image,
   Linking,
-  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -42,6 +41,7 @@ import {
   hasNativeSelectableMarkdownText,
   SelectableMarkdownText,
   type NativeMarkdownTextStyle,
+  type SelectableMarkdownSkill,
 } from "../../native/SelectableMarkdownText";
 
 import { AppText as Text } from "../../components/AppText";
@@ -68,11 +68,7 @@ import {
   type ThreadFeedEntry,
   type ThreadFeedLatestTurn,
 } from "../../lib/threadActivity";
-import {
-  isThreadFeedNearEnd,
-  threadFeedFooterHeight,
-  threadFeedMessageContentHeight,
-} from "../../lib/threadFeedLayout";
+import { isThreadFeedNearEnd } from "../../lib/threadFeedLayout";
 import { relativeTime } from "../../lib/time";
 import { messageImageUrl } from "./threadPresentation";
 import type { ThreadContentPresentation } from "./threadContentPresentation";
@@ -105,6 +101,7 @@ export interface ThreadFeedProps {
   readonly contentBottomInset?: number;
   readonly layoutVariant?: LayoutVariant;
   readonly composerExpanded?: boolean;
+  readonly skills?: ReadonlyArray<SelectableMarkdownSkill>;
 }
 
 function MessageAttachmentImage(props: {
@@ -166,9 +163,38 @@ function buildActivityRows(
 
 const MAX_VISIBLE_WORK_LOG_ENTRIES = 1;
 
-function toMarkdownThemeColor(value: ColorValue): string {
-  return value as string;
-}
+const MARKDOWN_COLORS = {
+  light: {
+    body: "#111111",
+    strong: "#000000",
+    link: "#2563eb",
+    blockquoteBorder: "rgba(0, 0, 0, 0.08)",
+    blockquoteBackground: "rgba(0, 0, 0, 0.02)",
+    codeBackground: "rgba(0, 0, 0, 0.04)",
+    codeText: "#262626",
+    horizontalRule: "rgba(0, 0, 0, 0.08)",
+    userBody: "#ffffff",
+    userCodeBackground: "rgba(255, 255, 255, 0.22)",
+    userCodeText: "#ffffff",
+    userFenceBackground: "rgba(0, 0, 0, 0.16)",
+    userFenceText: "#ffffff",
+  },
+  dark: {
+    body: "#e5e5e5",
+    strong: "#f5f5f5",
+    link: "#60a5fa",
+    blockquoteBorder: "rgba(255, 255, 255, 0.1)",
+    blockquoteBackground: "rgba(255, 255, 255, 0.03)",
+    codeBackground: "rgba(255, 255, 255, 0.06)",
+    codeText: "#e5e5e5",
+    horizontalRule: "rgba(255, 255, 255, 0.08)",
+    userBody: "#ffffff",
+    userCodeBackground: "rgba(255, 255, 255, 0.18)",
+    userCodeText: "#ffffff",
+    userFenceBackground: "rgba(0, 0, 0, 0.28)",
+    userFenceText: "#ffffff",
+  },
+} as const;
 
 interface MarkdownStyleSets {
   readonly user: MarkdownStyleSet;
@@ -279,34 +305,26 @@ function useReviewCommentColors(): ReviewCommentColors {
 }
 
 function useMarkdownStyles(): MarkdownStyleSets {
-  const bodyColor = useThemeColor("--color-md-body");
-  const strongColor = useThemeColor("--color-md-strong");
-  const linkColor = useThemeColor("--color-md-link");
-  const blockquoteBg = useThemeColor("--color-md-blockquote-bg");
-  const blockquoteBorder = useThemeColor("--color-md-blockquote-border");
-  const codeBg = useThemeColor("--color-md-code-bg");
-  const codeText = useThemeColor("--color-md-code-text");
-  const hrColor = useThemeColor("--color-md-hr");
-  const userBodyColor = useThemeColor("--color-user-bubble-foreground");
-  const userCodeBg = useThemeColor("--color-md-user-code-bg");
-  const userCodeText = useThemeColor("--color-md-user-code-text");
-  const userFenceBg = useThemeColor("--color-md-user-fence-bg");
-  const userFenceText = useThemeColor("--color-md-user-fence-text");
+  const colorScheme = useColorScheme();
+  const colors = MARKDOWN_COLORS[colorScheme === "dark" ? "dark" : "light"];
+  const inlineChipBackground = String(useThemeColor("--color-subtle"));
+  const inlineSkillBackground = String(useThemeColor("--color-inline-skill-background"));
+  const inlineSkillForeground = String(useThemeColor("--color-inline-skill-foreground"));
 
   return useMemo(() => {
-    const markdownBodyColor = toMarkdownThemeColor(bodyColor);
-    const markdownStrongColor = toMarkdownThemeColor(strongColor);
-    const markdownLinkColor = toMarkdownThemeColor(linkColor);
-    const markdownBlockquoteBg = toMarkdownThemeColor(blockquoteBg);
-    const markdownBlockquoteBorder = toMarkdownThemeColor(blockquoteBorder);
-    const markdownCodeBg = toMarkdownThemeColor(codeBg);
-    const markdownCodeText = toMarkdownThemeColor(codeText);
-    const markdownHrColor = toMarkdownThemeColor(hrColor);
-    const markdownUserBodyColor = toMarkdownThemeColor(userBodyColor);
-    const markdownUserCodeBg = toMarkdownThemeColor(userCodeBg);
-    const markdownUserCodeText = toMarkdownThemeColor(userCodeText);
-    const markdownUserFenceBg = toMarkdownThemeColor(userFenceBg);
-    const markdownUserFenceText = toMarkdownThemeColor(userFenceText);
+    const markdownBodyColor = colors.body;
+    const markdownStrongColor = colors.strong;
+    const markdownLinkColor = colors.link;
+    const markdownBlockquoteBg = colors.blockquoteBackground;
+    const markdownBlockquoteBorder = colors.blockquoteBorder;
+    const markdownCodeBg = colors.codeBackground;
+    const markdownCodeText = colors.codeText;
+    const markdownHrColor = colors.horizontalRule;
+    const markdownUserBodyColor = colors.userBody;
+    const markdownUserCodeBg = colors.userCodeBackground;
+    const markdownUserCodeText = colors.userCodeText;
+    const markdownUserFenceBg = colors.userFenceBackground;
+    const markdownUserFenceText = colors.userFenceText;
 
     const baseTheme: PartialMarkdownTheme = {
       colors: {
@@ -631,7 +649,10 @@ function useMarkdownStyles(): MarkdownStyleSets {
           codeColor: markdownUserCodeText,
           codeBackgroundColor: markdownUserCodeBg,
           codeBlockBackgroundColor: markdownUserFenceBg,
-          fileBackgroundColor: markdownUserCodeBg,
+          fileBackgroundColor: "rgba(255, 255, 255, 0.12)",
+          fileTextColor: "#ffffff",
+          skillBackgroundColor: "rgba(217, 70, 239, 0.24)",
+          skillTextColor: "#ffffff",
           quoteMarkerColor: markdownUserBodyColor,
           dividerColor: markdownUserBodyColor,
           fontSize: 15,
@@ -658,7 +679,10 @@ function useMarkdownStyles(): MarkdownStyleSets {
           codeColor: markdownCodeText,
           codeBackgroundColor: markdownCodeBg,
           codeBlockBackgroundColor: markdownCodeBg,
-          fileBackgroundColor: markdownCodeBg,
+          fileBackgroundColor: inlineChipBackground,
+          fileTextColor: markdownCodeText,
+          skillBackgroundColor: inlineSkillBackground,
+          skillTextColor: inlineSkillForeground,
           quoteMarkerColor: markdownBlockquoteBorder,
           dividerColor: markdownHrColor,
           fontSize: 15,
@@ -669,26 +693,12 @@ function useMarkdownStyles(): MarkdownStyleSets {
         },
       },
     };
-  }, [
-    blockquoteBg,
-    blockquoteBorder,
-    bodyColor,
-    codeBg,
-    codeText,
-    hrColor,
-    linkColor,
-    strongColor,
-    userBodyColor,
-    userCodeBg,
-    userCodeText,
-    userFenceBg,
-    userFenceText,
-  ]);
+  }, [colors, inlineChipBackground, inlineSkillBackground, inlineSkillForeground]);
 }
 
 function renderFeedEntry(
   info: { item: ThreadFeedEntry; index: number },
-  props: Pick<ThreadFeedProps, "bearerToken" | "dpopAccessToken" | "httpBaseUrl"> & {
+  props: Pick<ThreadFeedProps, "bearerToken" | "dpopAccessToken" | "httpBaseUrl" | "skills"> & {
     readonly copiedRowId: string | null;
     readonly expandedWorkGroups: Record<string, boolean>;
     readonly expandedWorkRows: Record<string, boolean>;
@@ -763,6 +773,7 @@ function renderFeedEntry(
                 text={message.text}
                 markdownStyles={styles}
                 reviewCommentColors={props.reviewCommentColors}
+                skills={props.skills}
               />
             ) : null}
             {attachments.map((attachment) => {
@@ -810,7 +821,11 @@ function renderFeedEntry(
       <View className={cn(showAssistantMeta ? "mb-5 px-1" : "mb-2 px-1")}>
         {message.text.trim().length > 0 ? (
           hasNativeSelectableMarkdownText() ? (
-            <SelectableMarkdownText markdown={message.text} textStyle={styles.nativeTextStyle} />
+            <SelectableMarkdownText
+              markdown={message.text}
+              skills={props.skills}
+              textStyle={styles.nativeTextStyle}
+            />
           ) : (
             <Markdown
               options={{ gfm: true }}
@@ -1004,10 +1019,20 @@ function UserMessageContent(props: {
   readonly text: string;
   readonly markdownStyles: MarkdownStyleSet;
   readonly reviewCommentColors: ReviewCommentColors;
+  readonly skills?: ReadonlyArray<SelectableMarkdownSkill>;
 }) {
   const segments = parseReviewCommentMessageSegments(props.text);
   const hasReviewComment = segments.some((segment) => segment.kind === "review-comment");
   if (!hasReviewComment) {
+    if (hasNativeSelectableMarkdownText()) {
+      return (
+        <SelectableMarkdownText
+          markdown={props.text}
+          skills={props.skills}
+          textStyle={props.markdownStyles.nativeTextStyle}
+        />
+      );
+    }
     return (
       <Markdown
         options={{ gfm: true }}
@@ -1038,7 +1063,14 @@ function UserMessageContent(props: {
           return null;
         }
 
-        return (
+        return hasNativeSelectableMarkdownText() ? (
+          <SelectableMarkdownText
+            key={segment.id}
+            markdown={text}
+            skills={props.skills}
+            textStyle={props.markdownStyles.nativeTextStyle}
+          />
+        ) : (
           <Markdown
             key={segment.id}
             options={{ gfm: true }}
@@ -1255,7 +1287,9 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const previousLatestTurnRef = useRef(props.latestTurn);
   const isNearEndRef = useRef(true);
   const followKeyboardRef = useRef(true);
-  const lastMessageContentHeightRef = useRef(0);
+  const keyboardTransitionRef = useRef(false);
+  const initialScrollReadyRef = useRef(false);
+  const lastContentHeightRef = useRef(0);
   const { width: viewportWidth } = useWindowDimensions();
   const [interactionState, setInteractionState] = useState<{
     readonly copiedRowId: string | null;
@@ -1279,9 +1313,6 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const insets = useSafeAreaInsets();
   const topContentInset = props.contentTopInset ?? insets.top + 44;
   const bottomContentInset = props.contentBottomInset ?? 18;
-  const viewportHeight = useSharedValue(0);
-  const messageContentHeight = useSharedValue(0);
-  const footerHeight = useSharedValue(0);
   const keyboardInset = useSharedValue(0);
   const topInset = useSharedValue(topContentInset);
   const bottomInset = useSharedValue(bottomContentInset);
@@ -1291,6 +1322,15 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const userBubbleColor = useThemeColor("--color-user-bubble");
   const markdownStyles = useMarkdownStyles();
   const reviewCommentColors = useReviewCommentColors();
+  const listAppearanceData = useMemo(
+    () => ({
+      iconSubtleColor,
+      markdownStyles,
+      reviewCommentColors,
+      userBubbleColor,
+    }),
+    [iconSubtleColor, markdownStyles, reviewCommentColors, userBubbleColor],
+  );
   const presentedFeed = useMemo(
     () => deriveThreadFeedPresentation(props.feed, props.latestTurn, expandedTurnIds),
     [expandedTurnIds, props.feed, props.latestTurn],
@@ -1321,11 +1361,13 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   }, []);
 
   const captureKeyboardFollowState = useCallback(() => {
+    keyboardTransitionRef.current = true;
     followKeyboardRef.current = isNearEndRef.current;
   }, []);
 
   const handleKeyboardEnd = useCallback(
     (_nextKeyboardInset: number, keyboardVisible: boolean) => {
+      keyboardTransitionRef.current = false;
       if (keyboardVisible && followKeyboardRef.current) {
         scrollToEnd();
       }
@@ -1373,23 +1415,8 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   }));
 
   const footerSpacerStyle = useAnimatedStyle(() => {
-    const effectiveBottomInset = bottomInset.value + keyboardInset.value;
-    const nextFooterHeight = threadFeedFooterHeight({
-      viewportHeight: viewportHeight.value,
-      messageContentHeight: messageContentHeight.value,
-      topInset: 0,
-      bottomInset: effectiveBottomInset,
-    });
-    footerHeight.value = nextFooterHeight;
-    return { height: nextFooterHeight };
+    return { height: bottomInset.value + keyboardInset.value };
   });
-
-  const onListLayout = useCallback(
-    (event: LayoutChangeEvent) => {
-      viewportHeight.value = event.nativeEvent.layout.height;
-    },
-    [viewportHeight],
-  );
 
   const onListScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentInset, contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -1406,23 +1433,30 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
 
   const onListContentSizeChange = useCallback(
     (_width: number, height: number) => {
-      const nextMessageContentHeight = threadFeedMessageContentHeight(height, footerHeight.value);
-      const contentGrew = nextMessageContentHeight > lastMessageContentHeightRef.current + 0.5;
+      const contentGrew = height > lastContentHeightRef.current + 0.5;
+      lastContentHeightRef.current = height;
 
-      lastMessageContentHeightRef.current = nextMessageContentHeight;
-      messageContentHeight.value = nextMessageContentHeight;
-
-      if (contentGrew && isNearEndRef.current && !suppressAutoFollowRef.current) {
+      if (
+        initialScrollReadyRef.current &&
+        !keyboardTransitionRef.current &&
+        contentGrew &&
+        isNearEndRef.current &&
+        !suppressAutoFollowRef.current
+      ) {
         scrollToEnd();
       }
     },
-    [footerHeight, messageContentHeight, scrollToEnd],
+    [scrollToEnd],
   );
+
+  const onListLoad = useCallback(() => {
+    initialScrollReadyRef.current = true;
+  }, []);
 
   useEffect(() => {
     topInset.value = topContentInset;
     bottomInset.value = bottomContentInset;
-    if (isNearEndRef.current) {
+    if (initialScrollReadyRef.current && isNearEndRef.current) {
       scrollToEnd();
     }
   }, [bottomContentInset, bottomInset, scrollToEnd, topContentInset, topInset]);
@@ -1556,6 +1590,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
         markdownStyles,
         reviewCommentColors,
         reviewCommentBubbleWidth,
+        skills: props.skills,
       }),
     [
       copiedRowId,
@@ -1576,6 +1611,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       props.bearerToken,
       props.dpopAccessToken,
       props.httpBaseUrl,
+      props.skills,
     ],
   );
 
@@ -1629,7 +1665,9 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
           contentInsetAdjustmentBehavior="never"
           contentInset={{ top: 0, bottom: 0 }}
           scrollIndicatorInsets={{ top: 0, bottom: 0 }}
+          alignItemsAtEnd
           data={presentedFeed}
+          extraData={listAppearanceData}
           renderItem={renderItem}
           keyExtractor={(entry) => `${entry.type}:${entry.id}`}
           getItemType={(entry) =>
@@ -1638,8 +1676,9 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           estimatedItemSize={180}
+          initialScrollAtEnd
           onContentSizeChange={onListContentSizeChange}
-          onLayout={onListLayout}
+          onLoad={onListLoad}
           onScroll={onListScroll}
           scrollEventThrottle={16}
           ListHeaderComponent={<View style={{ height: topContentInset }} />}

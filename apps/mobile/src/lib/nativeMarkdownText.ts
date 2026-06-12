@@ -1,5 +1,6 @@
 import type { MarkdownNode } from "react-native-nitro-markdown/headless";
 
+import type { SelectableMarkdownSkill } from "../native/SelectableMarkdownText.types";
 import { resolveMarkdownLinkPresentation, type MarkdownFileIcon } from "./markdownLinks";
 
 export interface NativeMarkdownTextRun {
@@ -11,6 +12,8 @@ export interface NativeMarkdownTextRun {
   readonly href?: string;
   readonly externalHost?: string;
   readonly fileIcon?: MarkdownFileIcon;
+  readonly skillName?: string;
+  readonly skillLabel?: string;
   readonly role?:
     | "body"
     | "heading"
@@ -24,6 +27,9 @@ export interface NativeMarkdownTextRun {
   readonly headingLevel?: number;
   readonly depth?: number;
   readonly spacing?: number;
+  readonly firstLineHeadIndent?: number;
+  readonly headIndent?: number;
+  readonly paragraphSpacing?: number;
 }
 
 export type NativeMarkdownDocumentChunk =
@@ -50,6 +56,9 @@ interface RunContext {
   readonly headingLevel?: number;
   readonly depth?: number;
   readonly spacing?: number;
+  readonly firstLineHeadIndent?: number;
+  readonly headIndent?: number;
+  readonly paragraphSpacing?: number;
 }
 
 const EMPTY_CONTEXT: RunContext = {
@@ -123,10 +132,15 @@ function sameRunStyle(left: NativeMarkdownTextRun, right: NativeMarkdownTextRun)
     left.href === right.href &&
     left.externalHost === right.externalHost &&
     left.fileIcon === right.fileIcon &&
+    left.skillName === right.skillName &&
+    left.skillLabel === right.skillLabel &&
     left.role === right.role &&
     left.headingLevel === right.headingLevel &&
     left.depth === right.depth &&
-    left.spacing === right.spacing
+    left.spacing === right.spacing &&
+    left.firstLineHeadIndent === right.firstLineHeadIndent &&
+    left.headIndent === right.headIndent &&
+    left.paragraphSpacing === right.paragraphSpacing
   );
 }
 
@@ -152,6 +166,13 @@ function appendRun(
     ...(context.headingLevel ? { headingLevel: context.headingLevel } : {}),
     ...(context.depth ? { depth: context.depth } : {}),
     ...(context.spacing ? { spacing: context.spacing } : {}),
+    ...(context.firstLineHeadIndent !== undefined
+      ? { firstLineHeadIndent: context.firstLineHeadIndent }
+      : {}),
+    ...(context.headIndent !== undefined ? { headIndent: context.headIndent } : {}),
+    ...(context.paragraphSpacing !== undefined
+      ? { paragraphSpacing: context.paragraphSpacing }
+      : {}),
   };
   const previous = runs.at(-1);
   if (previous && sameRunStyle(previous, run)) {
@@ -161,6 +182,69 @@ function appendRun(
 
   runs.push(run);
   return runs;
+}
+
+const SKILL_TOKEN_REGEX = /(^|\s)\$([a-zA-Z][a-zA-Z0-9:_-]*)(?=\s|$)/g;
+
+function formatSkillLabel(skill: SelectableMarkdownSkill): string {
+  const displayName = skill.displayName?.trim();
+  if (displayName) {
+    return displayName;
+  }
+  return skill.name
+    .split(/[\s:_-]+/)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function decorateSkillRuns(
+  runs: ReadonlyArray<NativeMarkdownTextRun>,
+  skills: ReadonlyArray<SelectableMarkdownSkill>,
+): ReadonlyArray<NativeMarkdownTextRun> {
+  if (skills.length === 0) {
+    return runs;
+  }
+  const skillByName = new Map(skills.map((skill) => [skill.name, skill]));
+  const decorated: NativeMarkdownTextRun[] = [];
+
+  for (const run of runs) {
+    if (run.code || run.href || run.fileIcon || run.role === "code-block") {
+      decorated.push(run);
+      continue;
+    }
+
+    let cursor = 0;
+    let matched = false;
+    for (const match of run.text.matchAll(SKILL_TOKEN_REGEX)) {
+      const prefix = match[1] ?? "";
+      const name = match[2] ?? "";
+      const skill = skillByName.get(name);
+      if (!skill) {
+        continue;
+      }
+      const start = (match.index ?? 0) + prefix.length;
+      const end = start + name.length + 1;
+      if (start > cursor) {
+        decorated.push({ ...run, text: run.text.slice(cursor, start) });
+      }
+      decorated.push({
+        ...run,
+        text: run.text.slice(start, end),
+        skillName: name,
+        skillLabel: formatSkillLabel(skill),
+      });
+      cursor = end;
+      matched = true;
+    }
+    if (!matched) {
+      decorated.push(run);
+    } else if (cursor < run.text.length) {
+      decorated.push({ ...run, text: run.text.slice(cursor) });
+    }
+  }
+
+  return decorated;
 }
 
 function appendChildren(
@@ -302,12 +386,16 @@ function appendListItem(
   node: MarkdownNode,
   marker: string,
   depth: number,
+  markerColumnWidth: number,
 ): NativeMarkdownTextRun[] {
-  const indent = "\u00a0\u00a0\u00a0".repeat(Math.max(0, depth - 1));
-  appendRun(runs, `${indent}${marker}\u00a0\u00a0`, {
+  const firstLineHeadIndent = Math.max(0, depth - 1) * 20;
+  appendRun(runs, `${marker}\t`, {
     ...EMPTY_CONTEXT,
     role: "list-marker",
     depth,
+    firstLineHeadIndent,
+    headIndent: firstLineHeadIndent + markerColumnWidth,
+    paragraphSpacing: 2,
   });
 
   const children = node.children ?? [];
@@ -392,7 +480,9 @@ function appendList(
         : ordered
           ? `${"\u2007".repeat(Math.max(0, markerWidth - Array.from(marker).length))}${marker}`
           : marker;
-    appendListItem(runs, child, alignedMarker, depth);
+    const markerColumnWidth =
+      child.type === "task_list_item" ? 28 : ordered ? 10 + markerWidth * 8 : 24;
+    appendListItem(runs, child, alignedMarker, depth, markerColumnWidth);
   }
   return runs;
 }
@@ -641,6 +731,7 @@ export function nativeMarkdownChunkSpacing(
 
 export function nativeMarkdownDocumentRuns(
   node: MarkdownNode,
+  skills: ReadonlyArray<SelectableMarkdownSkill> = [],
 ): ReadonlyArray<NativeMarkdownTextRun> {
   const runs = appendDocumentBlock([], node);
   while (runs.length > 0) {
@@ -656,5 +747,5 @@ export function nativeMarkdownDocumentRuns(
       runs[lastIndex] = { ...last, text };
     }
   }
-  return runs;
+  return decorateSkillRuns(runs, skills);
 }

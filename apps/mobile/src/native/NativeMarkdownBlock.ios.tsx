@@ -223,7 +223,8 @@ function NativeCodeBlock(props: {
   readonly compact?: boolean;
 }) {
   const content = nodeText(props.node).replace(/\n$/, "");
-  const theme = useColorScheme() === "dark" ? "dark" : "light";
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === "dark" ? "dark" : "light";
   const highlighted = useHighlightedCode(content, props.node.language, theme);
   const languageLabel = props.node.language?.toUpperCase() ?? "CODE";
   return (

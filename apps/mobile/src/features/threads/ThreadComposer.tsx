@@ -13,18 +13,14 @@ import {
   serializeComposerFileLink,
   type ComposerTrigger,
 } from "@t3tools/shared/composerTrigger";
-import { TextInputWrapper } from "expo-paste-input";
 import type { ReactNode } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
   Pressable,
-  TextInput as RNTextInput,
   useColorScheme,
   View,
-  type NativeSyntheticEvent,
-  type TextInputSelectionChangeEventData,
   type ViewStyle,
 } from "react-native";
 import ImageViewing from "react-native-image-viewing";
@@ -32,6 +28,11 @@ import { useThemeColor } from "../../lib/useThemeColor";
 
 import { AppText as Text } from "../../components/AppText";
 import { ComposerAttachmentStrip } from "../../components/ComposerAttachmentStrip";
+import {
+  ComposerEditor,
+  type ComposerEditorHandle,
+  type ComposerEditorSelection,
+} from "../../components/ComposerEditor";
 import {
   ComposerToolbarButton,
   ComposerToolbarRow,
@@ -43,7 +44,6 @@ import { ProviderIcon } from "../../components/ProviderIcon";
 import type { DraftComposerImageAttachment } from "../../lib/composerImages";
 import { buildModelOptions, groupByProvider } from "../../lib/modelOptions";
 import type { RemoteClientConnectionState } from "../../lib/connection";
-import { useNativePaste } from "../../lib/useNativePaste";
 import {
   insertRankedSearchResult,
   normalizeSearchQuery,
@@ -68,14 +68,7 @@ export const COMPOSER_COLLAPSED_CHROME = 68;
  * Height of the expanded composer (card + toolbar + vertical padding, excluding safe-area inset).
  * Used by the parent to compute the larger feed bottom inset when the composer is focused.
  */
-export const COMPOSER_EXPANDED_CHROME = 174;
-
-/**
- * Height of the expanded-only toolbar below the text surface.
- * Used by the feed inset because the floating toolbar remains an additional
- * overlay above the keyboard.
- */
-export const COMPOSER_EXPANDED_TOOLBAR_CHROME = 60;
+export const COMPOSER_EXPANDED_CHROME = 162;
 
 export interface ThreadComposerProps {
   readonly draftMessage: string;
@@ -207,10 +200,8 @@ const ComposerConnectionStatusPill = memo(function ComposerConnectionStatusPill(
 
 export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposerProps) {
   const isDarkMode = useColorScheme() === "dark";
-  const themePlaceholderColor = useThemeColor("--color-placeholder");
-  const placeholderColor = isDarkMode ? "#a1a1aa" : themePlaceholderColor;
   const foregroundColor = useThemeColor("--color-foreground");
-  const inputRef = useRef<RNTextInput>(null);
+  const inputRef = useRef<ComposerEditorHandle>(null);
   const [isFocused, setIsFocused] = useState(false);
   const wasExpandedBeforePreviewRef = useRef(false);
   const { onExpandedChange } = props;
@@ -265,25 +256,33 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
     );
   }, [props.serverConfig, props.selectedThread.modelSelection.instanceId]);
 
-  const handleNativePaste = useNativePaste((uris) => {
-    void props.onNativePasteImages(uris);
-  });
-
   // ── Trigger detection ────────────────────────────────────
-  const [cursorPosition, setCursorPosition] = useState(0);
+  const [composerSelection, setComposerSelection] = useState(() => ({
+    start: props.draftMessage.length,
+    end: props.draftMessage.length,
+  }));
 
-  const handleSelectionChange = useCallback(
-    (event: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
-      const { start } = event.nativeEvent.selection;
-      setCursorPosition(start);
-    },
-    [],
-  );
+  const handleSelectionChange = useCallback((selection: ComposerEditorSelection) => {
+    setComposerSelection(selection);
+  }, []);
+  useEffect(() => {
+    const end = props.draftMessage.length;
+    setComposerSelection((selection) => {
+      const start = Math.min(selection.start, end);
+      const selectionEnd = Math.min(selection.end, end);
+      if (start === selection.start && selectionEnd === selection.end) {
+        return selection;
+      }
+      return { start, end: selectionEnd };
+    });
+  }, [props.draftMessage.length]);
 
-  const composerTrigger = useMemo<ComposerTrigger | null>(
-    () => detectComposerTrigger(props.draftMessage, cursorPosition),
-    [cursorPosition, props.draftMessage],
-  );
+  const composerTrigger = useMemo<ComposerTrigger | null>(() => {
+    if (composerSelection.start !== composerSelection.end) {
+      return null;
+    }
+    return detectComposerTrigger(props.draftMessage, composerSelection.end);
+  }, [composerSelection, props.draftMessage]);
   const pathSearch = useComposerPathSearch({
     environmentId: props.environmentId,
     cwd: composerTrigger?.kind === "path" ? props.projectCwd : null,
@@ -457,7 +456,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
           composerTrigger.rangeEnd,
           "",
         );
-        setCursorPosition(result.cursor);
+        setComposerSelection({ start: result.cursor, end: result.cursor });
         onChangeDraftMessage(result.text);
         void onUpdateInteractionMode(item.command);
         return;
@@ -480,7 +479,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
         composerTrigger.rangeEnd,
         replacement,
       );
-      setCursorPosition(result.cursor);
+      setComposerSelection({ start: result.cursor, end: result.cursor });
       onChangeDraftMessage(result.text);
     },
     [composerTrigger, draftMessage, onChangeDraftMessage, onUpdateInteractionMode],
@@ -615,7 +614,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
     <View
       style={{
         paddingHorizontal: 16,
-        paddingTop: isExpanded ? 12 : 10,
+        paddingTop: isExpanded ? 0 : 10,
         paddingBottom: (props.bottomInset ?? 0) + (isExpanded ? 4 : 10),
         experimental_backgroundImage: isDarkMode
           ? "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0.95) 100%)"
@@ -683,41 +682,39 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
           ) : null}
 
           <View style={isExpanded ? undefined : { flex: 1, minWidth: 0 }}>
-            <TextInputWrapper onPaste={handleNativePaste}>
-              <RNTextInput
-                ref={inputRef}
-                multiline
-                value={props.draftMessage}
-                onChangeText={props.onChangeDraftMessage}
-                onSelectionChange={handleSelectionChange}
-                placeholder={props.placeholder}
-                placeholderTextColor={placeholderColor}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                textAlignVertical={isExpanded ? "top" : "center"}
-                style={
-                  isExpanded
-                    ? {
-                        minHeight: 80,
-                        maxHeight: 160,
-                        paddingHorizontal: 4,
-                        paddingVertical: 4,
-                        fontSize: 15,
-                        lineHeight: 22,
-                        color: foregroundColor,
-                        fontFamily: "DMSans_400Regular",
-                      }
-                    : {
-                        maxHeight: 36,
-                        paddingVertical: 6,
-                        fontSize: 15,
-                        lineHeight: 20,
-                        color: foregroundColor,
-                        fontFamily: "DMSans_400Regular",
-                      }
-                }
-              />
-            </TextInputWrapper>
+            <ComposerEditor
+              ref={inputRef}
+              multiline
+              value={props.draftMessage}
+              skills={selectedProviderStatus?.skills ?? []}
+              selection={composerSelection}
+              onChangeText={props.onChangeDraftMessage}
+              onSelectionChange={handleSelectionChange}
+              onPasteImages={(uris) => void props.onNativePasteImages(uris)}
+              placeholder={props.placeholder}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              scrollEnabled={isExpanded}
+              contentInsetVertical={isExpanded ? 0 : 6}
+              style={
+                isExpanded
+                  ? {
+                      minHeight: 80,
+                      maxHeight: 160,
+                      paddingHorizontal: 4,
+                      paddingVertical: 4,
+                    }
+                  : {
+                      height: 36,
+                    }
+              }
+              textStyle={{
+                fontSize: 15,
+                lineHeight: isExpanded ? 22 : 20,
+                color: foregroundColor,
+                fontFamily: "DMSans_400Regular",
+              }}
+            />
           </View>
           {!isExpanded && props.draftAttachments.length > 0 ? (
             <View style={{ flexDirection: "row", gap: 4, paddingLeft: 4 }}>

@@ -24,6 +24,7 @@ import { AppText as Text } from "../../components/AppText";
 import type { StatusTone } from "../../components/StatusPill";
 import type { DraftComposerImageAttachment } from "../../lib/composerImages";
 import type { LayoutVariant } from "../../lib/layout";
+import { resolveThreadFeedBottomInset } from "../../lib/threadFeedLayout";
 import type {
   PendingApproval,
   PendingUserInput,
@@ -35,7 +36,6 @@ import { PendingUserInputCard } from "./PendingUserInputCard";
 import {
   COMPOSER_COLLAPSED_CHROME,
   COMPOSER_EXPANDED_CHROME,
-  COMPOSER_EXPANDED_TOOLBAR_CHROME,
   ThreadComposer,
 } from "./ThreadComposer";
 import { ThreadFeed } from "./ThreadFeed";
@@ -219,10 +219,19 @@ export const ThreadDetailScreen = memo(function ThreadDetailScreen(props: Thread
   const showContent = props.showContent ?? true;
   const layoutVariant = props.layoutVariant ?? "compact";
   const isSplitLayout = layoutVariant === "split";
+  const selectedInstanceId = props.selectedThread.modelSelection.instanceId;
   useStreamingHaptics(props.selectedThread.id, props.selectedThreadFeed);
-  const expandedToolbarInset = composerExpanded ? COMPOSER_EXPANDED_TOOLBAR_CHROME : 0;
-  const feedBottomInset =
-    Math.max(estimatedOverlayHeight, measuredOverlayHeight) + expandedToolbarInset + 8;
+  const feedBottomInset = resolveThreadFeedBottomInset({
+    estimatedOverlayHeight,
+    measuredOverlayHeight,
+    gap: 8,
+  });
+  const selectedProviderSkills = useMemo(
+    () =>
+      props.serverConfig?.providers.find((provider) => provider.instanceId === selectedInstanceId)
+        ?.skills ?? [],
+    [props.serverConfig, selectedInstanceId],
+  );
 
   const completeDrawerGesture = useCallback(() => {
     void Haptics.selectionAsync();
@@ -271,6 +280,7 @@ export const ThreadDetailScreen = memo(function ThreadDetailScreen(props: Thread
             contentBottomInset={feedBottomInset}
             layoutVariant={layoutVariant}
             composerExpanded={composerExpanded}
+            skills={selectedProviderSkills}
           />
         ) : (
           <View style={{ flex: 1 }} />

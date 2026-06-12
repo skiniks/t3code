@@ -335,7 +335,7 @@ type SymbolName = ComponentProps<typeof SymbolView>["name"];
 function SettingsSection(props: { readonly title: string; readonly children: ReactNode }) {
   return (
     <View className="gap-2">
-      <Text className="px-2 font-t3-bold text-[17px] text-foreground-tertiary">{props.title}</Text>
+      <Text className="px-2 text-[13px] font-t3-medium text-foreground-muted">{props.title}</Text>
       <View
         className="overflow-hidden rounded-[28px] bg-card"
         style={{ borderCurve: "continuous" }}

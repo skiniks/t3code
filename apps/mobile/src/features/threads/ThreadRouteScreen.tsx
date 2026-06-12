@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import * as Option from "effect/Option";
 import { EnvironmentId, type ProjectScript } from "@t3tools/contracts";
 import { projectScriptCwd, projectScriptRuntimeEnv } from "@t3tools/shared/projectScripts";
-import { Pressable, ScrollView, Text as RNText, View, useColorScheme } from "react-native";
+import { Pressable, ScrollView, Text as RNText, View } from "react-native";
 import { useWorkspaceState } from "../../state/workspace";
 import { useThemeColor } from "../../lib/useThemeColor";
 import { useEnvironmentQuery } from "../../state/query";
@@ -89,10 +89,9 @@ export function ThreadRouteScreen() {
   const routeConnectionError = routeEnvironmentRuntime?.connectionError ?? null;
 
   /* ─── Native header theming ──────────────────────────────────────── */
-  const isDark = useColorScheme() === "dark";
   const iconColor = String(useThemeColor("--color-icon"));
   const foregroundColor = String(useThemeColor("--color-foreground"));
-  const secondaryFg = isDark ? "#a3a3a3" : "#525252";
+  const secondaryFg = String(useThemeColor("--color-foreground-secondary"));
 
   /* ─── Git status for native header trigger ───────────────────────── */
   const gitStatus = useEnvironmentQuery(

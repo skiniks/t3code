@@ -130,6 +130,45 @@ describe("nativeMarkdownTextRuns", () => {
 });
 
 describe("nativeMarkdownDocumentRuns", () => {
+  it("decorates known skill references as selectable skill chips", () => {
+    const node: MarkdownNode = {
+      type: "document",
+      children: [
+        {
+          type: "paragraph",
+          children: [{ type: "text", content: "Use $ui for this." }],
+        },
+      ],
+    };
+
+    expect(nativeMarkdownDocumentRuns(node, [{ name: "ui", displayName: "UI" }])).toEqual([
+      { text: "Use ", role: "body" },
+      {
+        text: "$ui",
+        role: "body",
+        skillName: "ui",
+        skillLabel: "UI",
+      },
+      { text: " for this.", role: "body" },
+    ]);
+  });
+
+  it("leaves unknown skill-like text unchanged", () => {
+    const node: MarkdownNode = {
+      type: "document",
+      children: [
+        {
+          type: "paragraph",
+          children: [{ type: "text", content: "Use $unknown for this." }],
+        },
+      ],
+    };
+
+    expect(nativeMarkdownDocumentRuns(node, [])).toEqual([
+      { text: "Use $unknown for this.", role: "body" },
+    ]);
+  });
+
   it("keeps headings, paragraphs, and lists in one continuous document", () => {
     const node: MarkdownNode = {
       type: "document",
@@ -176,7 +215,7 @@ describe("nativeMarkdownDocumentRuns", () => {
 
     const runs = nativeMarkdownDocumentRuns(node);
     expect(runs.map((run) => run.text).join("")).toBe(
-      "Header One\n\nA paragraph with bold text.\n\n•\u00a0\u00a0First item\n•\u00a0\u00a0Second item",
+      "Header One\n\nA paragraph with bold text.\n\n•\tFirst item\n•\tSecond item",
     );
     expect(runs).toContainEqual({
       text: "Header One\n",
@@ -189,9 +228,12 @@ describe("nativeMarkdownDocumentRuns", () => {
       role: "body",
     });
     expect(runs).toContainEqual({
-      text: "•\u00a0\u00a0",
+      text: "•\t",
       role: "list-marker",
       depth: 1,
+      firstLineHeadIndent: 0,
+      headIndent: 24,
+      paragraphSpacing: 2,
     });
   });
 
@@ -251,7 +293,14 @@ describe("nativeMarkdownDocumentRuns", () => {
     };
 
     expect(nativeMarkdownDocumentRuns(node)).toEqual([
-      { text: "•  ", role: "list-marker", depth: 1 },
+      {
+        text: "•\t",
+        role: "list-marker",
+        depth: 1,
+        firstLineHeadIndent: 0,
+        headIndent: 24,
+        paragraphSpacing: 2,
+      },
       { text: "Finding:", bold: true, role: "body", depth: 1 },
       { text: " details with ", role: "body", depth: 1 },
       { text: "inline code", code: true, role: "body", depth: 1 },
@@ -402,7 +451,7 @@ describe("nativeMarkdownDocumentChunks", () => {
       nativeMarkdownDocumentRuns(chunks[0]?.node ?? document)
         .map((run) => run.text)
         .join(""),
-    ).toBe("Tasks\n\n☑︎  Completed\n•  Parent\n   ◦  Nested");
+    ).toBe("Tasks\n\n☑︎\tCompleted\n•\tParent\n◦\tNested");
   });
 
   it("aligns ordered markers while keeping the list in one selectable string", () => {
@@ -431,7 +480,7 @@ describe("nativeMarkdownDocumentChunks", () => {
       nativeMarkdownDocumentRuns(document)
         .map((run) => run.text)
         .join(""),
-    ).toBe("\u20079.  Ninth\n10.  Tenth");
+    ).toBe("\u20079.\tNinth\n10.\tTenth");
   });
 
   it("keeps prose selectable while exposing rich AST blocks", () => {

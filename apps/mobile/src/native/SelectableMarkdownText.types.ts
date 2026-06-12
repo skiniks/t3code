@@ -7,6 +7,9 @@ export interface NativeMarkdownTextStyle {
   readonly codeBackgroundColor: string;
   readonly codeBlockBackgroundColor: string;
   readonly fileBackgroundColor: string;
+  readonly fileTextColor: string;
+  readonly skillBackgroundColor: string;
+  readonly skillTextColor: string;
   readonly quoteMarkerColor: string;
   readonly dividerColor: string;
   readonly fontSize: number;
@@ -16,9 +19,15 @@ export interface NativeMarkdownTextStyle {
   readonly boldFontFamily: string;
 }
 
+export interface SelectableMarkdownSkill {
+  readonly name: string;
+  readonly displayName?: string | null;
+}
+
 export interface SelectableMarkdownTextProps {
   readonly markdown: string;
   readonly textStyle: NativeMarkdownTextStyle;
+  readonly skills?: ReadonlyArray<SelectableMarkdownSkill>;
   readonly marginTop?: number;
   readonly marginBottom?: number;
 }

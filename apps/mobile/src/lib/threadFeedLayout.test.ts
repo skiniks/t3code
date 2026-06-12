@@ -2,9 +2,8 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   isThreadFeedNearEnd,
+  resolveThreadFeedBottomInset,
   threadFeedDistanceFromEnd,
-  threadFeedFooterHeight,
-  threadFeedMessageContentHeight,
 } from "./threadFeedLayout";
 
 describe("thread feed layout", () => {
@@ -21,26 +20,13 @@ describe("thread feed layout", () => {
     expect(isThreadFeedNearEnd(metrics, 10)).toBe(false);
   });
 
-  it("fills unused viewport space without changing message content height", () => {
-    const footerHeight = threadFeedFooterHeight({
-      viewportHeight: 800,
-      messageContentHeight: 300,
-      topInset: 100,
-      bottomInset: 180,
-    });
-
-    expect(footerHeight).toBe(400);
-    expect(threadFeedMessageContentHeight(700, footerHeight)).toBe(300);
-  });
-
-  it("keeps the bottom overlay clearance once messages fill the available viewport", () => {
+  it("does not double count chrome already included in the measured composer overlay", () => {
     expect(
-      threadFeedFooterHeight({
-        viewportHeight: 800,
-        messageContentHeight: 600,
-        topInset: 100,
-        bottomInset: 180,
+      resolveThreadFeedBottomInset({
+        estimatedOverlayHeight: 162,
+        measuredOverlayHeight: 182,
+        gap: 8,
       }),
-    ).toBe(180);
+    ).toBe(190);
   });
 });

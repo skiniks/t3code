@@ -64,7 +64,9 @@ describe("verifyDpopProof", () => {
       expectedThumbprint: thumbprint,
     });
 
-    assert.equal(result.ok, true);
+    if (!result.ok) {
+      assert.fail(result.reason);
+    }
     assert.equal(result.thumbprint, thumbprint);
     assert.equal(result.jti, "proof-1");
   });
@@ -144,7 +146,9 @@ describe("verifyDpopProof", () => {
       expectedThumbprint: thumbprint,
       expectedAccessToken: "clerk-access-token",
     });
-    assert.equal(missingHash.ok, false);
+    if (missingHash.ok) {
+      assert.fail("Expected DPoP proof without an access token hash to fail.");
+    }
     assert.equal(missingHash.reason, "DPoP access token hash mismatch.");
 
     const mismatchedHash = verifyDpopProof({
@@ -155,7 +159,9 @@ describe("verifyDpopProof", () => {
       expectedThumbprint: thumbprint,
       expectedAccessToken: "other-access-token",
     });
-    assert.equal(mismatchedHash.ok, false);
+    if (mismatchedHash.ok) {
+      assert.fail("Expected DPoP proof with a mismatched access token hash to fail.");
+    }
     assert.equal(mismatchedHash.reason, "DPoP access token hash mismatch.");
   });
 
@@ -207,7 +213,9 @@ describe("verifyDpopProof", () => {
       expectedThumbprint: thumbprint,
     });
 
-    assert.equal(result.ok, false);
+    if (result.ok) {
+      assert.fail("Expected DPoP proof with private JWK material to fail.");
+    }
     assert.equal(result.reason, "Invalid DPoP JWT header.");
   });
 });

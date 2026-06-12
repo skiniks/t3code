@@ -165,10 +165,15 @@ export function verifyDpopProof(input: {
 
     const signature = base64UrlToBytes(parts[2]);
     const signatureInputHash = sha256(new TextEncoder().encode(`${parts[0]}.${parts[1]}`));
-    const verified = p256.verify(signature, signatureInputHash, publicKeyBytesFromJwk(header.value.jwk), {
-      prehash: false,
-      format: "compact",
-    });
+    const verified = p256.verify(
+      signature,
+      signatureInputHash,
+      publicKeyBytesFromJwk(header.value.jwk),
+      {
+        prehash: false,
+        format: "compact",
+      },
+    );
     return verified
       ? {
           ok: true,

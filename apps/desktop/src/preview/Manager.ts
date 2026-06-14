@@ -1130,6 +1130,10 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
     const tab = (yield* SynchronizedRef.get(tabsRef)).get(tabId);
     if (!tab) return;
     yield* cancelPickElement(tabId);
+    const recordingTabId = yield* Ref.get(recordingTabIdRef);
+    if (Option.isSome(recordingTabId) && recordingTabId.value === tabId) {
+      yield* Ref.set(recordingTabIdRef, Option.none());
+    }
     if (tab.webContentsId != null) {
       yield* Effect.all(
         [detachControlSession(tab.webContentsId), detachListeners(tab.webContentsId)],

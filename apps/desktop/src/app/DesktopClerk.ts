@@ -36,6 +36,30 @@ export function createDesktopClerkBridge(stateDir: string, isDevelopment: boolea
   });
 }
 
+function isProtocolRegistrationManagedExternally(): boolean {
+  return process.env.T3CODE_DESKTOP_PROTOCOL_REGISTRATION_MANAGED?.trim() === "1";
+}
+
+function resolveProtocolClientLaunchArgs(argv: readonly string[]): readonly string[] {
+  return argv.slice(1);
+}
+
+function resolveConfiguredProtocolClient(): {
+  readonly path: string;
+  readonly args: readonly string[];
+} | null {
+  const path = process.env.T3CODE_DESKTOP_PROTOCOL_CLIENT_PATH?.trim();
+  if (!path) return null;
+
+  return {
+    path,
+    args: (process.env.T3CODE_DESKTOP_PROTOCOL_CLIENT_ARGS ?? "")
+      .split("\n")
+      .map((arg) => arg.trim())
+      .filter((arg) => arg.length > 0),
+  };
+}
+
 const make = DesktopClerk.of({
   configure: Effect.gen(function* () {
     const electronApp = yield* ElectronApp.ElectronApp;
@@ -47,6 +71,30 @@ const make = DesktopClerk.of({
     if (!(yield* electronApp.requestSingleInstanceLock)) {
       yield* electronApp.quit;
       return yield* Effect.interrupt;
+    }
+
+    const scheme = ElectronProtocol.getDesktopScheme(environment.isDevelopment);
+
+    if (isProtocolRegistrationManagedExternally()) {
+      // macOS development launchers register the URL handler externally via
+      // Info.plist and LaunchServices before the Electron process starts.
+    } else if (environment.isDevelopment) {
+      const configuredClient = resolveConfiguredProtocolClient();
+      if (configuredClient) {
+        yield* electronApp.setAsDefaultProtocolClient(
+          scheme,
+          configuredClient.path,
+          configuredClient.args,
+        );
+      } else {
+        yield* electronApp.setAsDefaultProtocolClient(
+          scheme,
+          process.execPath,
+          resolveProtocolClientLaunchArgs(process.argv),
+        );
+      }
+    } else {
+      yield* electronApp.setAsDefaultProtocolClient(scheme);
     }
 
     yield* Effect.acquireRelease(

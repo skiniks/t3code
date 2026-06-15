@@ -45,6 +45,31 @@ export class ElectronProtocol extends Context.Service<ElectronProtocol, Electron
   "@t3tools/desktop/electron/ElectronProtocol",
 ) {}
 
+const registerDesktopSchemePrivileges = Effect.sync(() => {
+  Electron.protocol.registerSchemesAsPrivileged([
+    {
+      scheme: DESKTOP_PRODUCTION_SCHEME,
+      privileges: {
+        standard: true,
+        secure: true,
+        supportFetchAPI: true,
+        corsEnabled: true,
+      },
+    },
+    {
+      scheme: DESKTOP_DEVELOPMENT_SCHEME,
+      privileges: {
+        standard: true,
+        secure: true,
+        supportFetchAPI: true,
+        corsEnabled: true,
+      },
+    },
+  ]);
+}).pipe(Effect.withSpan("desktop.electron.protocol.registerSchemePrivileges"));
+
+export const layerSchemePrivileges = Layer.effectDiscard(registerDesktopSchemePrivileges);
+
 function proxyRequest(request: Request, targetOrigin: URL): Promise<Response> {
   const requestUrl = new URL(request.url);
   if (requestUrl.host !== DESKTOP_HOST) {

@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import { vi } from "vite-plus/test";
 
 const { createClerkBridgeMock, storageAdapter, storageMock } = vi.hoisted(() => ({
@@ -24,9 +25,11 @@ vi.mock("@clerk/electron/storage", () => ({
 import { createDesktopClerkBridge } from "./DesktopClerk.ts";
 import * as DesktopClerk from "./DesktopClerk.ts";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
+import * as ElectronApp from "../electron/ElectronApp.ts";
+import * as ElectronWindow from "../electron/ElectronWindow.ts";
 
 describe("DesktopClerk", () => {
-  it.effect("acquires and releases the SDK bridge with the layer", () => {
+  it.effect("acquires and releases the SDK bridge during configure after instance lock", () => {
     const cleanup = vi.fn();
     storageMock.mockReturnValue(storageAdapter);
     createClerkBridgeMock.mockReturnValue({ cleanup });
@@ -34,12 +37,29 @@ describe("DesktopClerk", () => {
       stateDir: "/tmp/t3-state",
       isDevelopment: true,
     } as unknown as DesktopEnvironment.DesktopEnvironmentShape);
+    const electronApp = ElectronApp.ElectronApp.of({
+      requestSingleInstanceLock: Effect.succeed(true),
+      on: () => Effect.void,
+    } as unknown as ElectronApp.ElectronAppShape);
+    const electronWindow = ElectronWindow.ElectronWindow.of({
+      currentMainOrFirst: Effect.succeed(Option.none()),
+    } as unknown as ElectronWindow.ElectronWindowShape);
 
     return Effect.gen(function* () {
       yield* Effect.scoped(
-        Layer.build(
-          DesktopClerk.layer.pipe(
-            Layer.provide(Layer.succeed(DesktopEnvironment.DesktopEnvironment, environment)),
+        Effect.gen(function* () {
+          const clerk = yield* DesktopClerk.DesktopClerk;
+          assert.equal(createClerkBridgeMock.mock.calls.length, 0);
+          yield* clerk.configure;
+        }),
+      ).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            DesktopClerk.layer.pipe(
+              Layer.provide(Layer.succeed(DesktopEnvironment.DesktopEnvironment, environment)),
+            ),
+            Layer.succeed(ElectronApp.ElectronApp, electronApp),
+            Layer.succeed(ElectronWindow.ElectronWindow, electronWindow),
           ),
         ),
       );

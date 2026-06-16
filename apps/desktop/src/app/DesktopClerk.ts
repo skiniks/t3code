@@ -35,10 +35,6 @@ export function createDesktopClerkBridge(stateDir: string, isDevelopment: boolea
 
 const make = Effect.gen(function* () {
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
-  yield* Effect.acquireRelease(
-    Effect.sync(() => createDesktopClerkBridge(environment.stateDir, environment.isDevelopment)),
-    (bridge) => Effect.sync(() => bridge.cleanup()),
-  );
 
   return DesktopClerk.of({
     configure: Effect.gen(function* () {
@@ -51,6 +47,13 @@ const make = Effect.gen(function* () {
         yield* electronApp.quit;
         return yield* Effect.interrupt;
       }
+
+      yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          createDesktopClerkBridge(environment.stateDir, environment.isDevelopment),
+        ),
+        (bridge) => Effect.sync(() => bridge.cleanup()),
+      );
 
       yield* electronApp.on("second-instance", () => {
         void runPromise(

@@ -1,4 +1,5 @@
 import { bootstrapRemoteBearerSession } from "@t3tools/client-runtime";
+import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
@@ -26,20 +27,28 @@ export class DesktopLocalEnvironmentAuth extends Context.Service<
   DesktopLocalEnvironmentAuthShape
 >()("@t3tools/desktop/backend/DesktopLocalEnvironmentAuth") {}
 
+interface CachedToken {
+  readonly token: string;
+  readonly expiresAt: number;
+}
+
+const EXPIRY_SAFETY_MARGIN = 0.9;
+
 export const layer = Layer.effect(
   DesktopLocalEnvironmentAuth,
   Effect.gen(function* () {
     const backendManager = yield* DesktopBackendManager.DesktopBackendManager;
     const httpClient = yield* HttpClient.HttpClient;
-    const tokenRef = yield* Ref.make(Option.none<string>());
+    const tokenRef = yield* Ref.make(Option.none<CachedToken>());
     const mutex = yield* Semaphore.make(1);
 
     const getBearerToken = mutex
       .withPermits(1)(
         Effect.gen(function* () {
+          const now = yield* Clock.currentTimeMillis;
           const cached = yield* Ref.get(tokenRef);
-          if (Option.isSome(cached)) {
-            return cached.value;
+          if (Option.isSome(cached) && now < cached.value.expiresAt) {
+            return cached.value.token;
           }
 
           const configOption = yield* backendManager.currentConfig;
@@ -66,7 +75,8 @@ export const layer = Layer.effect(
                 }),
             ),
           );
-          yield* Ref.set(tokenRef, Option.some(session.access_token));
+          const expiresAt = now + session.expires_in * 1000 * EXPIRY_SAFETY_MARGIN;
+          yield* Ref.set(tokenRef, Option.some({ token: session.access_token, expiresAt }));
           return session.access_token;
         }),
       )
